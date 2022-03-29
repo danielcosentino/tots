@@ -135,7 +135,7 @@ app.post("/api/register", async(req, res) =>
     	text: "Here is your Verification Code: " + verifCode
     };
 		// await sgMail.send(msg);
-		sgMail.send(msg)
+		await sgMail.send(msg)
 			.then((a) =>
 			{
 				console.log(a);
