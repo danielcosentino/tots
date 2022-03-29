@@ -146,34 +146,21 @@ app.post("/api/register", async(req, res) =>
 			verifCode
 		});
 		console.log("user created successfully" + user);
+    
     // this is for email sending stuff
 		const msg =
     {
     	to: "daniel.cosentinofl@gmail.com",
-    	from: "christinemstevens02@gmail.com",
+    	from: "Top.of.the.schedule.inc.inc@gmail.com",
     	subject: "Your Top o' the Schedule Registration Key",
     	text: "Here is your Verification Code: " + verifCode
     };
-		// sgMail.send(msg);
 
     const token = jwt.sign({
 			id: user._id,
 			email: user.email
 		}, process.env.JWT_SECRET);
     
-		
-		// sgMail.send(msg).then(
-    // (a) =>
-    // {
-    //   console.log(a);
-    // }, error =>
-    // {
-    //   console.error(error);
-    //   if (error.response)
-    //   {
-    //     console.error(error.response.body);
-    //   }
-    // });
     try {
       await sgMail.send(msg);
     } catch (error) {
@@ -183,7 +170,7 @@ app.post("/api/register", async(req, res) =>
         console.error(error.response.body)
       }
       // delete the user
-      User.deleteOne({ _id: user._id });
+      await User.deleteOne({ _id: user._id });
       res.status(500);
       return res.json({ error: "Failed to create user" });
     }
@@ -212,6 +199,8 @@ app.get('/api/passwords', (req, res) => {
   const passwords = Array.from(Array(count).keys()).map(i =>
     generatePassword(12, false)
   )
+
+  passwords.push("Pa55w0rd123!")
 
   // Return them as json
   res.json(passwords);
