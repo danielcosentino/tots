@@ -126,7 +126,7 @@ app.post("/api/register", async(req, res) =>
 			verifCode
 		});
 		console.log("user created successfully" + response);
-    	// this is for email sending stuff
+    // this is for email sending stuff
 		const msg =
     {
     	to: "daniel.cosentinofl@gmail.com",
@@ -135,19 +135,18 @@ app.post("/api/register", async(req, res) =>
     	text: "Here is your Verification Code: " + verifCode
     };
 		// await sgMail.send(msg);
-		await sgMail.send(msg)
-			.then((a) =>
-			{
-				console.log(a);
-			}, error =>
-			{
-				console.error(error);
-
-				if (error.response)
-				{
-					console.error(error.response.body);
-				}
-			});
+		sgMail.send(msg).then(
+    (a) =>
+    {
+      console.log(a);
+    }, error =>
+    {
+      console.error(error);
+      if (error.response)
+      {
+        console.error(error.response.body);
+      }
+    });
 	}
 	catch (error)
 	{
