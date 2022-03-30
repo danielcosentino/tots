@@ -173,7 +173,8 @@ app.post("/api/register", async(req, res) =>
     // this is for email sending stuff
 		const msg =
     {
-    	to: "daniel.cosentinofl@gmail.com",
+      // to: email
+    	to: "Top.of.the.schedule.inc.inc@gmail.com",
     	from: "Top.of.the.schedule.inc.inc@gmail.com",
     	subject: "Your Top o' the Schedule Registration Key",
     	text: "Here is your Verification Code: " + verifCode
