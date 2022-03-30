@@ -98,7 +98,7 @@ app.post("/api/login", async(req, res) =>
   // email password is successful
 	{
 		const token = jwt.sign({
-			id: user._id
+			userId: user._id
 		}, process.env.JWT_SECRET);
     res.status(200);
 		return res.json({ data: token });
@@ -188,7 +188,7 @@ app.post("/api/register", async(req, res) =>
         console.error(error.response.body)
       }
       // delete the user
-      await User.deleteOne({ _id: user._id });
+      await User.deleteOne({ _userId: user._id });
       res.status(500);
       const token = jwt.sign({
         error: "Failed to create user"
@@ -197,7 +197,7 @@ app.post("/api/register", async(req, res) =>
     }
 
     const token = jwt.sign({
-			id: user._id
+			userId: user._id
 		}, process.env.JWT_SECRET);
 
     res.status(200);
@@ -220,38 +220,127 @@ app.post("/api/register", async(req, res) =>
 	res.status(200);
 });
 
-
-// api/editClass u_u 
-
-// app.put('/api/editClass', (req, res) => {
-
-// 	const { userId, className, semesterNumber } = req.body;
-
-
-
-// })
-
-
 // Verify User
+app.post('/api/verifyUser', async (req, res) => {
 
-// app.post('/api/verifyUser', (req, res) => {
+  // yoink
+  const { userId, verifCode } = req.body;
+  const user = await User.findOne({ userId }).lean(); 
 
-//   // yoink
-//   const { userId, verifCode } = req.body;
-//   const user = await User.findOne({ userId }).lean();
+  // If userId doesn't match any user - ree
+  if (!user) {
 
-//   // if the user has not been verified
-//   if (!user.verified) {}
-  
+    const token = jwt.sign({
+      error: "User does not exist"
+    }, process.env.JWT_SECRET);
+
+    res.status(400); // double check
+    return res.json({ data: token });
+
+  }
 
 
+  // if wrong verification code 
+  if (user.verifCode != verifCode) {
+    const token = jwt.sign({
+      userId: user._id || "aaa",
+      error: "Invalid Verification Code"
+    }, process.env.JWT_SECRET);
 
-// }); 
-// ;
-
-
+    res.status(400); // double check
+    return res.json({ data: token });
     
+  }
 
+  // user has already been verified
+  if (user.verified) {
+    const token = jwt.sign({
+      error: "User already verified"
+    }, process.env.JWT_SECRET);
+
+    res.status(400); // double check
+    return res.json({ data: token });
+
+  }
+
+  // yoinks scoob, the user has not been verified
+  if (!user.verified) {
+    // all good raggy
+    // B) swag
+    // TEST THIS
+    User.findByIdAndUpdate(userId, {verified: true}, (err, docs) =>{
+      if (err)
+      {
+        const token = jwt.sign({
+          error: "User could not be verified"
+        }, process.env.JWT_SECRET);
+        // 500 since its a server error
+        res.status(500); // double check
+        return res.json({ data: token });
+      }
+      else
+      {
+        // it did work woo yay fun time woo party woo
+        const token = jwt.sign({
+          userId: userId
+        }, process.env.JWT_SECRET);
+        // 200 since it succeeded
+        res.status(200);
+        return res.json({ data: token });
+      }
+    }); 
+  }
+});
+
+
+// reset password
+app.post('/api/resetPassword', async (req, res) => 
+{
+  // yoink
+  const { userId, password : plainTextPassword } = req.body;
+  const user = await User.findOne({ userId }).lean();
+
+  // if the user was not found
+  if (!user) 
+  {
+    const token = jwt.sign({
+      error: "User not found"
+    }, process.env.JWT_SECRET);
+    res.status(400);
+    return res.json({ data: token });
+  }
+  
+  // yoinks scoob, the user has not been verified
+  if (!user.verified) 
+  {
+    const token = jwt.sign({
+      error: "User not verified"
+    }, process.env.JWT_SECRET);
+    res.status(400);
+    return res.json({ data: token });
+  }
+  // change the password in the database
+  const hashedPassword = await bcrypt.hash(plainTextPassword, 10);
+  User.findByIdAndUpdate(userId, { password: hashedPassword }, (err, docs) => {
+    if (err) {
+      // Could not update user
+      const token = jwt.sign({
+        error: "Could not update user"
+      }, process.env.JWT_SECRET);
+      res.status(500);
+      return res.json({ data: token });
+    }
+    else {
+      // updated user correctly
+      const token = jwt.sign({
+        userId: userId
+      }, process.env.JWT_SECRET);
+      res.status(200);
+      return res.json({ data: token });
+    }
+  }); 
+  
+});
     // put all API endpoints under '/api'
 app.get('/api/passwords', (req, res) => {
   const count = 5;
