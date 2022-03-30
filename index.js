@@ -9,6 +9,7 @@ const User = require("./model/user");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const sgMail = require("@sendgrid/mail");
+const cors = require("cors");
 
 const app = express();
 
@@ -19,16 +20,17 @@ require("dotenv").config();
 
 if (process.env.ENV_CHECKER == "true")
 {
-	console.log("The env file is hooked up");
+  console.log("The env file is hooked up");
 }
 
 
 // Serve static files from the React app
 app.use(express.static(path.join(__dirname, 'client/build')));
 mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
-	useNewUrlParser: true,
+  useNewUrlParser: true,
 	useUnifiedTopology: true
 });
+app.use(cors());
 app.use(bodyParser.json());
 app.use(session({
 	secret: "foo",
