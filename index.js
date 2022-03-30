@@ -58,7 +58,7 @@ function makeVerifCode()
 }
 
 
-// 
+// ------------------------------------------------------------------------------------------------------------------------------------
 // endpoint prison
 // ------------------------------------------------------------------------------------------------------------------------------------
 
@@ -71,20 +71,34 @@ app.post("/api/login", async(req, res) =>
 	if (!user)
 	{
     res.status(400);
-		return res.json({ error: "Invalid email/password" });
+    const token = jwt.sign({
+      error: "Invalid email/password"
+    }, process.env.JWT_SECRET);
+    return res.json({ data: token });
 	}
+
+  if (!user.verified)
+  {
+    res.status(400);
+    const token = jwt.sign({
+      error: "User not verified" 
+    }, process.env.JWT_SECRET);
+    return res.json({ data: token });
+  }
 
 	if (await bcrypt.compare(password, user.password).catch(
     err => {
     res.status(400);
-		return res.json({ error: "Failed to hash password" });
+    const token = jwt.sign({
+      error: "Failed to hash password"
+    }, process.env.JWT_SECRET);
+    return res.json({ data: token });
     }
   ))
+  // email password is successful
 	{
-		// email password is successful
 		const token = jwt.sign({
-			id: user._id,
-			email: user.email
+			id: user._id
 		}, process.env.JWT_SECRET);
     res.status(200);
 		return res.json({ data: token });
@@ -93,11 +107,17 @@ app.post("/api/login", async(req, res) =>
   else
   {
     res.status(400);
-    return res.json({ error: "Invalid email/password" });
+    const token = jwt.sign({
+      error: "Invalid email/password"
+    }, process.env.JWT_SECRET);
+    return res.json({ data: token });
   }
 
   res.status(400);
-	res.json({ error: "Unknown error" });
+  const token = jwt.sign({
+    error: "Unknown error"
+  }, process.env.JWT_SECRET);
+  return res.json({ data: token });
 });
 
 // register
@@ -106,32 +126,33 @@ app.post("/api/register", async(req, res) =>
 	const { email, password: plainTextPassword } = req.body;
 
 	// if the email is empty or it is not a string
-	if (!email || typeof email !== "string")
+	if (!email || typeof email !== "string" || email.match(/\S+@\S+\.\S+/) == null)
 	{
     res.status(400);
-		return res.json({ error: "Invalid Email" });
-	}
-
-	if (email.match(/\S+@\S+\.\S+/) == null)
-	{
-    res.status(400);
-		return res.json({ error: "Invalid Email, must be in email format" });
+    const token = jwt.sign({
+      error: "Invalid Email, must be in email format"
+    }, process.env.JWT_SECRET);
+    return res.json({ data: token });
 	}
 
 	// if the password is empty or it is not a string
 	if (!plainTextPassword || typeof plainTextPassword !== "string")
 	{
     res.status(400);
-		return res.json({ error: "Invalid Password" });
+    const token = jwt.sign({
+      error: "Invalid Password"
+    }, process.env.JWT_SECRET);
+    return res.json({ data: token });
 	}
 
 	// if the password is not the correct length
 	if (plainTextPassword.length <= 5)
 	{
     res.status(400);
-		return res.json({
-			error: "Password  too small. Should be at least 6 characters"
-		});
+    const token = jwt.sign({
+      error: "Password too small"
+    }, process.env.JWT_SECRET);
+    return res.json({ data: token });
 	}
 
 	const password = await bcrypt.hash(plainTextPassword, 10);
@@ -156,10 +177,7 @@ app.post("/api/register", async(req, res) =>
     	text: "Here is your Verification Code: " + verifCode
     };
 
-    const token = jwt.sign({
-			id: user._id,
-			email: user.email
-		}, process.env.JWT_SECRET);
+
     
     try {
       await sgMail.send(msg);
@@ -172,18 +190,30 @@ app.post("/api/register", async(req, res) =>
       // delete the user
       await User.deleteOne({ _id: user._id });
       res.status(500);
-      return res.json({ error: "Failed to create user" });
+      const token = jwt.sign({
+        error: "Failed to create user"
+      }, process.env.JWT_SECRET);
+      return res.json({ data: token });
     }
-    res.json({ status: "ok", data: token });
+
+    const token = jwt.sign({
+			id: user._id
+		}, process.env.JWT_SECRET);
+
+    res.status(200);
+    res.json({ data: token });
 
 	}
 	catch (error)
 	{
 		if (error.code === 11000)
 		{
-			// duplicate key
+      // duplicate key
+      const token = jwt.sign({
+        error: "Email already in use"
+      }, process.env.JWT_SECRET);
       res.status(400);
-			return res.json({ error: "Email already in use" });
+			return res.json({ data: token });
 		}
 		throw error;
 	}
@@ -191,7 +221,38 @@ app.post("/api/register", async(req, res) =>
 });
 
 
-// Put all API endpoints under '/api'
+// api/editClass u_u 
+
+// app.put('/api/editClass', (req, res) => {
+
+// 	const { userId, className, semesterNumber } = req.body;
+
+
+
+// })
+
+
+// Verify User
+
+// app.post('/api/verifyUser', (req, res) => {
+
+//   // yoink
+//   const { userId, verifCode } = req.body;
+//   const user = await User.findOne({ userId }).lean();
+
+//   // if the user has not been verified
+//   if (!user.verified) {}
+  
+
+
+
+// }); 
+// ;
+
+
+    
+
+    // put all API endpoints under '/api'
 app.get('/api/passwords', (req, res) => {
   const count = 5;
 
