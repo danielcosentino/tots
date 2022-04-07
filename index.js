@@ -99,10 +99,10 @@ app.post("/api/login", async(req, res) =>
   ))
   // email password is successful
 	{
+    res.status(200);
 		const token = jwt.sign({
 			userId: user._id
 		}, process.env.JWT_SECRET);
-    res.status(200);
 		return res.json({ data: token });
 	}
   // password is incorrect
@@ -115,7 +115,7 @@ app.post("/api/login", async(req, res) =>
     return res.json({ data: token });
   }
 
-  res.status(400);
+  res.status(500);
   const token = jwt.sign({
     error: "Unknown error"
   }, process.env.JWT_SECRET);
@@ -295,7 +295,6 @@ app.post('/api/verifyUser', async (req, res) => {
   }
 });
 
-
 // reset password
 app.post('/api/resetPassword', async (req, res) => 
 {
@@ -344,7 +343,8 @@ app.post('/api/resetPassword', async (req, res) =>
   }); 
   
 });
-    // put all API endpoints under '/api'
+
+// put all API endpoints under '/api'
 app.get('/api/passwords', (req, res) => {
   const count = 5;
 
