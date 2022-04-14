@@ -447,6 +447,7 @@ app.post("/api/resetPassword", async (req, res) => {
   });
 });
 
+// TODO: this, but after the fifteenth database restructure
 // Edit Class
 app.post("/api/editClass", async (req, res) => {
   res.status(500);
@@ -606,19 +607,60 @@ app.get("/api/getElectives", async (req, res) => {
   }
 });
 
+// TODO: this
+app.post("/api/getSchedule", async (req, res) => {
+  res.status(500);
+  return res.json({ data: "This endpoint does not work yet :(" });
+});
+
+// TODO: this but like actual code lol
 // Generate Schedule (oh boy)
 app.post("/api/generateSchedule", async (req, res) => {
-  // note: currSemPoss means current semester possibilities
-  // note: nextSemDems means next semester determiners
+  // Input (required) Variables:
+  // note: userId
+  // note: scheduleNum
+  // note: nextSemSeason represents the season of the next semester to be processed
 
-  // get the nextSemDems for the first semester
-  // add all the postreqs of each class in nextSemDems to currSemPoss
-  // for each prereq of each class in currSemPoss
-    // if the current prereq 
+  // Input (parameter) Variables:
+  // note: creditLimitFall means the max hours for Fall, default is 17
+  // note: creditLimitSpring means the max hours for Spring, default is 17
+  // note: creditLimitSummer means the max hours for Summer, default is 14
+  // note: maxClassCountFall means the max amount of classes in Fall, default is 4
+  // note: maxClassCountSpring means the max amount of classes in Spring, default is 4
+  // note: maxClassCountSummer means the max amount of classes in Summer, default is 2
 
-  // make a new array, currSemPoss
-  // for each class, i, in the list of completed classes
-    // add all the postreqs of class i to currSemPoss
+  // Generated Variables:
+  // note: currSemPoss is a set of classes which can be taken in the next semester
+  // note: currSemClasses is a set of classes representing the generated semester
+
+  // SETUP FOR THE FIRST SEMESTER
+  // for each class in completedClasses
+    // for each postreq of the class
+      // if the postrequisite is not in currSemPoss
+        // if the prereqs are all in completedClasses
+          // add the class to currSemPoss
+
+  // while currSemPoss.length > 0
+    // THE ~A L G O R I T H M~
+    // sort the classes in currSemPoss by compoundedPostRecCount, in decreasing order
+    // switch on the season
+      // for each element in currSemPoss:
+      // if currCreditCount + currSemPoss[i].creditCount <= creditLimit:
+        // add the class to currSemClasses and remove it from currSemPoss
+        // if currClassCount >= maxClassCount:
+          // break
+    // add currSemPoss to the user's schedule
+    
+    // SETUP FOR THE FOLLOWING SEMESTER
+    // add the classes in currSemClasses to completedClasses
+    // for each class in currSemClasses:
+    // remove the class from currSemPoss
+      // for each postreq in the class:
+        // if the postreq has all of its prereqs in completed classes
+          // add the postreq to currSemPoss
+    // move the season up one
+    // clear currSemClasses
+
   res.status(500);
   return res.json({ data: "This endpoint does not work yet :(" });
 });
