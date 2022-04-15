@@ -618,7 +618,7 @@ app.post("/api/getSchedule", async (req, res) => {
 app.post("/api/generateSchedule", async (req, res) => {
   // Input (required) Variables:
   // note: userId
-  // note: scheduleNum
+  // note: scheduleNum (frontend needs to know what schedule number they are making... is this actually required?)
   // note: nextSemSeason represents the season of the next semester to be processed
 
   // Input (parameter) Variables:
@@ -628,6 +628,77 @@ app.post("/api/generateSchedule", async (req, res) => {
   // note: maxClassCountFall means the max amount of classes in Fall, default is 4
   // note: maxClassCountSpring means the max amount of classes in Spring, default is 4
   // note: maxClassCountSummer means the max amount of classes in Summer, default is 2
+
+  const { userId, scheduleNum, nextSemSeason, 
+    creditLimitFall, creditLimitSpring, creditLimitSummer, 
+    maxClassCountFall, maxClassCountSpring, maxClassCountSummer } = req.body;
+
+  // Input (required) Variables:
+  if (!userId || userId == "")
+  {
+    const token = jwt.sign(
+      {
+        error: "Invalid request: no userId",
+      },
+      process.env.JWT_SECRET
+    );
+    res.status(400);
+    return res.json({ data: token });
+  }
+  if (!scheduleNum || scheduleNum == "")
+  {
+    const token = jwt.sign(
+      {
+        error: "Invalid request: no scheduleNum",
+      },
+      process.env.JWT_SECRET
+    );
+    res.status(400);
+    return res.json({ data: token });
+  }
+  if (!nextSemSeason || nextSemSeason == "")
+  {
+    const token = jwt.sign(
+      {
+        error: "Invalid request: no nextSemSeason",
+      },
+      process.env.JWT_SECRET
+    );
+    res.status(400);
+    return res.json({ data: token });
+  }
+
+  // Input (parameter) Variables:
+  if (!creditLimitFall || creditLimitFall == "")
+  {
+    console.log("Default creditLimitFall");
+    creditLimitFall = 17;
+  }
+  if (!creditLimitSpring || creditLimitSpring == "")
+  {
+    console.log("Default creditLimitSpring");
+    creditLimitSpring = 17;
+  }
+  if (!creditLimitSummer || creditLimitSummer == "")
+  {
+    console.log("Default creditLimitSummer");
+    creditLimitSummer = 14;
+  }
+  if (!maxClassCountFall || maxClassCountFall == "")
+  {
+    console.log("Default maxClassCountFall");
+    maxClassCountFall = 4;
+  }
+  if (!maxClassCountSpring || maxClassCountSpring == "")
+  {
+    console.log("Default maxClassCountSpring");
+    maxClassCountSpring = 4;
+  }
+  if (!maxClassCountSummer || maxClassCountSummer == "")
+  {
+    console.log("Default maxClassCountSummer");
+    maxClassCountSummer = 4;
+  }
 
   // Generated Variables:
   // note: currSemPoss is a set of classes which can be taken in the next semester
@@ -640,26 +711,123 @@ app.post("/api/generateSchedule", async (req, res) => {
         // if the prereqs are all in completedClasses
           // add the class to currSemPoss
 
+
+  // TODO: this needs to be changed after the database restructure
+  let supersetChecker = (arr, target) => target.every(v => arr.includes(v));
+
+  let currSemPoss = [];
+  let numCompletedClasses = completedClasses.length;
+  for (let i = 0; i < numCompletedClasses; i++)
+  {
+    currentClass = /*Class.*/searchAndReturnClassByName(completedClasses[i]);
+    numPostReqs = currentClass.postReqs.length;
+    for (let j = 0; j < numPostReqs; j++)
+    {
+      currPostReq = /*Class.*/searchAndReturnClassByName(currentClass.postReqs[j]);
+      if (!currSemPoss.includes(currPostReq.classId))
+      {
+        // TODO: this needs to be changed after the database restructure
+        if (supersetChecker(completedClasses, currPostReq.preReqs))
+        {
+          currSemPoss.push(currPostReq.classId);
+        }
+      }
+    }
+  }
+
+  function classCompare(classA, classB) {
+    // TODO: ensure that these keywords match the database
+    if (classA.compoundedPostReqs.length < classB.compoundedPostReqs.length) {
+      return -1;
+    }
+    if (classA.compoundedPostReqs.length > classB.compoundedPostReqs.length) {
+      return 1;
+    }
+    // a must be equal to b
+    return 0;
+  }
+  
+  let semesterNum = 0;
   // while currSemPoss.length > 0
+  while (currSemPoss.length > 0)
+  {
+    let maxClassCount;
+    let creditLimit;
+    // switch for the current season
+    switch(nextSemSeason)
+    {
+      case "Fall":
+        maxClassCount = maxClassCountFall;
+        creditLimit = creditLimitFall;
+        break;
+      case "Spring":
+        maxClassCount = maxClassCountSpring;
+        creditLimit = creditLimitSpring;
+        break;
+      case "Summer":
+        maxClassCount = maxClassCountSummer;
+        creditLimit = creditLimitSummer;
+        break;
+    }
+
     // THE ~A L G O R I T H M~
     // sort the classes in currSemPoss by compoundedPostRecCount, in decreasing order
-    // switch on the season
-      // for each element in currSemPoss:
+    // for each element in currSemPoss:
       // if currCreditCount + currSemPoss[i].creditCount <= creditLimit:
         // add the class to currSemClasses and remove it from currSemPoss
         // if currClassCount >= maxClassCount:
           // break
     // add currSemPoss to the user's schedule
+    currSemPoss.sort(classCompare);
+    let currCreditCount = 0;
+    let currSemClasses = [];
+    for (let i = 0; i < currSemPoss.length; i++)
+    {
+      if (currCreditCount + currSemPoss[i].creditHours <= creditLimit)
+      {
+        if (currSemClasses.length < maxClassCount)
+        {
+          currSemClasses.push(currSemPoss[i].classId);
+        }
+        else 
+        {
+          break;
+        }
+      }
+    }
+    // user.add(scheduleNum, semesterNum, currSemClasses)
+
     
     // SETUP FOR THE FOLLOWING SEMESTER
     // add the classes in currSemClasses to completedClasses
     // for each class in currSemClasses:
-    // remove the class from currSemPoss
-      // for each postreq in the class:
+      // remove the class from currSemPoss
+      // for each postreq of the class:
         // if the postreq has all of its prereqs in completed classes
           // add the postreq to currSemPoss
     // move the season up one
     // clear currSemClasses
+
+
+    completedClasses = completedClasses.concat(currSemClasses);
+    // removes the contents of currSemClasses from currSemPoss
+    currSemPoss = currSemPoss.filter( ( el ) => !currSemClasses.includes( el ) );
+    for (let i = 0; i < currSemClasses.length; i++)
+    {
+      currClass = /*Class.*/searchAndReturnClassByName(currSemClasses);
+      for (let j = 0; j < currClass.postReqs.length; j++)
+      {
+        // TODO: if the postreq has all of its prereqs in completed classes
+        if (true)
+        {
+          // TODO: add the postreq to currSemPoss
+        }
+      }
+    }
+
+    semesterNum++;
+    currSemClasses = [];
+  }
 
   res.status(500);
   return res.json({ data: "This endpoint does not work yet :(" });
