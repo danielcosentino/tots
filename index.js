@@ -90,23 +90,15 @@ function classSearchAndDestroy(userId, classId, user, res) {
   // }
   // TODO: choice 2: ... update it down here as an entire new schedule
 
-  console.log(allSchedules);
-
-  // User.findByIdAndUpdate(userId, { $set: {schedules: allSchedules } }, (err, docs) => {
-  //   if (err) {
-  //     console.log(err.message);
-  //   } else {
-  //     console.log("no error in updating the schedule");
-  //   }
-  // });
-
+  
   User.findByIdAndUpdate(
-    { _id: userId },
+    { _id: userId, "schedule.semester": {$in: classId} },
     // Delete all instances of the class in a schedule
-    { $pull: { "schedule.$[element].semester": classId } },
-    { arrayFilters: [ { "element.semester": classId } ] }
+    { $pull: { "schedule.$.semester": classId } }
   );
-
+    
+  console.log(allSchedules);
+  console.log(user.schedule);
   console.log("at the end of classSearchAndDestroy");
 }
 
