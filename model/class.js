@@ -22,8 +22,9 @@ const ClassSchema = new mongoose.Schema(
     diff: { type: Number, required: true, unique: true },
     classType: { type: String, required: true, unique: true },
 
-    prereqs: [[nestedClass]],
-    postReqs: [[nestedClass]],
+    prereqs: [ { class: [ nestedClass ] } ],
+    postReqs: [ { class: [ nestedClass ] } ],
+    compPostReqs: [nestedClass]
 	},
 	{ collection: "Classes" }
 );

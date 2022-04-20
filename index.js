@@ -61,61 +61,63 @@ function makeVerifCode() {
   return result;
 }
 
-function classSearchAndDestroy(userId, classId, scheduleNum, user, res) {
-  // TODO: count number of semesters in a schedule and store that
-  let allSchedules = user.schedules;
-  let currSchedule = allSchedules[scheduleNum];
-  let numSemesters = currSchedule.length;
-  let currSemester;
+// find ALL(assume there can be more than one) instances of [classId] in [userId]'s [scheduleNum]th schedule and delete it
+function classSearchAndDestroy(userId, classId, user, res) {
+  // sussy?
+  let allSchedules = user.schedule;
+  //let currSchedule = allSchedules[scheduleNum];
+  //let numSemesters = currSchedule.length;
+  //let currSemester;
 
   console.log(allSchedules);
 
   // loop through each semester, deleting all instances of classId in the current semester
   // for each semester "i"
-  for (i = 0; i < numSemesters; i++)
-  {
-    // remove all instances of classId in that semester
-    currSemester = currSchedule[i];
-    let numClasses = currSemester.length;
-    for (j = 0; j < numClasses; j++)
-    {
-      if (currSemester[j] === classId)
-      {
-        console.log("The current semester includes the class which will be deleted");
-        currSemester.splice(j, 1);
-      }
-    }
-    // User.collection.updateMany( { _id: userId }, { $set: { "currSemester": [ classId ] } } )
-  }
+  // for (i = 0; i < numSemesters; i++) {
+  //   // remove all instances of classId in that semester
+  //   currSemester = currSchedule[i];
+  //   let numClasses = currSemester.length;
+  //   for (j = 0; j < numClasses; j++) {
+  //     if (currSemester[j] === classId) {
+  //       console.log(
+  //         "The current semester includes the class which will be deleted"
+  //       );
+  //       currSemester.splice(j, 1);
+  //       // TODO: choice 1: you could update the user's schedule for each class here or ...
+  //       //
+  //     }
+  //   }
+  // }
+  // TODO: choice 2: ... update it down here as an entire new schedule
 
   console.log(allSchedules);
 
-  User.findByIdAndUpdate(userId, { $set: {schedules: allSchedules } }, (err, docs) => {
-    if (err) {
-      console.log(err.message);
-    } else {
-      console.log("no error in updating the schedule");
-    }
-  });
+  // User.findByIdAndUpdate(userId, { $set: {schedules: allSchedules } }, (err, docs) => {
+  //   if (err) {
+  //     console.log(err.message);
+  //   } else {
+  //     console.log("no error in updating the schedule");
+  //   }
+  // });
 
-
-  // User.findByIdAndUpdate(
-  //   { _id: userId },
-  //   // Delete all instances of the class in a schedule
-  //   { $pullAll: { "schedules.$[scheduleNum]": [classId] } }
-  // );
+  User.findByIdAndUpdate(
+    { _id: userId },
+    // Delete all instances of the class in a schedule
+    { $pull: { "schedule.$[element].semester": classId } },
+    { arrayFilters: [ { "element.semester": classId } ] }
+  );
 
   console.log("at the end of classSearchAndDestroy");
 }
 
-function classAdd(userId, classId, scheduleNum, semesterNum, res) {
-  db.collection('User').findOneAndUpdate(
-    { _id: {$eq: userId }},
+function classAdd(userId, classId, semesterNum, res) {
+  User.findOneAndUpdate(
+    { _id: { $eq: userId } },
     // Add class to a semester oooOOooooooooOooOOoooOoOoOOo
-    { $push: { "schedules.$[scheduleNum].$[semesterNum]": classId } },
+    { $push: { "schedule.$[semesterNum].semester": classId } },
     (err, result) => {
       if (err) {
-        res.send({ 'error': 'An error has occured' });
+        res.send({ error: "An error has occured" });
       } else {
         res.send(result.ops[0]);
       }
@@ -328,7 +330,7 @@ app.post("/api/verifyUser", async (req, res) => {
       process.env.JWT_SECRET
     );
 
-    res.status(400); // double check
+    res.status(400);
     return res.json({ data: token });
   }
 
@@ -391,6 +393,32 @@ app.post("/api/verifyUser", async (req, res) => {
   }
 });
 
+// get Email
+app.post("/api/getEmail", async (req, res) => {
+  const { email } = req.body;
+  const user = await User.findOne({ email }).lean();
+
+  if (!user) {
+    const token = jwt.sign(
+      {
+        error: "User not found",
+      },
+      process.env.JWT_SECRET
+    );
+    res.status(400);
+    return res.json({ data: token });
+  }
+  
+  const token = jwt.sign(
+    {
+      userId: user._id,
+    },
+    process.env.JWT_SECRET
+  );
+  res.status(200);
+  return res.json({ data: token });
+});
+
 // reset password
 app.post("/api/resetPassword", async (req, res) => {
   // yoink
@@ -450,136 +478,135 @@ app.post("/api/resetPassword", async (req, res) => {
 // TODO: this, but after the fifteenth database restructure
 // Edit Class
 app.post("/api/editClass", async (req, res) => {
-  res.status(500);
-  return res.json({ data: "This endpoint does not work yet :(" });
-});
-//   const { userId, scheduleNum, semesterNum, classId } = req.body;
-//   try {
-//     if (semesterNum <= 0 || scheduleNum <= 0)
-//     {
-//       // 400 error, "invalid schedule or semester number", return
-//       const token = jwt.sign(
-//         {
-//           error: "invalid schedule or semester number",
-//         },
-//         process.env.JWT_SECRET
-//       );
-//       res.status(400);
-//       return res.json({ data: token });
-//     }
-//     const user = await User.findById(userId).lean();
-//     console.log("got user");
-
-//     // if the user does not exist
-//     if (!user) {
-//       // 400 error, "User not found", return
-//       const token = jwt.sign(
-//         {
-//           error: "User not found",
-//         },
-//         process.env.JWT_SECRET
-//       );
-//       res.status(400);
-//       return res.json({ data: token });
-//     }
-//     // SPOOKY GHOST oOoOoOoOoooooOOOO
-
-//     const classObj = await Class.findOne({ classId }).lean();
-//     console.log("got classObj, type of " + typeof classObj);
-//     console.log(classObj);
-
-//     // if class does not exist
-//     if (!classObj) {
-//       // 400 error, "No such class exists", return
-//       const token = jwt.sign(
-//         {
-//           error: "No such class exists",
-//         },
-//         process.env.JWT_SECRET
-//       );
-//       res.status(400);
-//       return res.json({ data: token });
-//     }
-
-//     // get prereqs of classId, store in array classPrereqs
-//     const classPrereqs = classObj.preReqs;
-
-//     // get postreqs of classId, store in array classPostreqs
-//     const classPostReqs = classObj.postReqs;
-
-//     // get class names of the classes in the semester specified, store in array semClasses
-//     let semClasses = user.schedules[scheduleNum - 1][semesterNum - 1];
-
-//     // Check prereqs to classes in semester
-//     if (classPrereqs && (semesterNum > 1)) {
-//       for (let i = 0; i < classPrereqs.length; i++) {
-//         for (let j = 0; j < semClasses.length; j++) {
-//           // if there are any matches in the arrays "classPrereqs" and "semClasses"
-//           if (classPrereqs[i] == semClasses[i]) {
-//             // 400 error, "prerequisite not met", return
-//             const token = jwt.sign(
-//               {
-//                 error: "Prerequisite not met",
-//               },
-//               process.env.JWT_SECRET
-//             );
-//             res.status(400);
-//             return res.json({ data: token });
-//           }
-//         }
-//       }
-//     }
-
-//     // Check postreqs of class against semester
-//     if (classPostReqs) {
-//       for (let i = 0; i < classPostreqs.length; i++) {
-//         for (let j = 0; j < semClasses.length; j++) {
-//           // if there are any matches in the arrays "classPrereqs" and "semClasses"
-//           if (classPostreqs[i] == semClasses[i]) {
-//             // 400 error, "postrequisite not met", return
-//             const token = jwt.sign(
-//               {
-//                 error: "Postrequisite not met",
-//               },
-//               process.env.JWT_SECRET
-//             );
-//             res.status(400);
-//             return res.json({ data: token });
-//           }
-//         }
-//       }
-//     }
-
-    
-//     classSearchAndDestroy(userId, classId, scheduleNum - 1, user);
-
-//     classAdd(userId, classId, scheduleNum - 1, semesterNum - 1, user);
-//     console.log("ping pong");
-
-//     const token = jwt.sign(
-//       {
-//         error: "WOO IT DOES THE THING",
-//       },
-//       process.env.JWT_SECRET
-//     );
-//     res.status(200);
-//     return res.json({ data: token });
-
-//     // otherwise, success!
-//     // users object -> schedule -> add class to semester -> check which semester had the class -> send it
-//   } catch {
-//     // catch
-//     // 500 error, "database fail?"
-//     const token = jwt.sign(
-//       {
-//         error: "Yikes :(",
-//       },
-//       process.env.JWT_SECRET
-//     );
-//     res.status(500);
-//     return res.json({ data: token });
-//   }
+//   res.status(500);
+//   return res.json({ data: "This endpoint does not work yet :(" });
 // });
+  const { userId, semesterNum, classId } = req.body;
+  try {
+    if (semesterNum <= 0)
+    {
+      // 400 error, "invalid schedule or semester number", return
+      const token = jwt.sign(
+        {
+          error: "invalid schedule or semester number",
+        },
+        process.env.JWT_SECRET
+      );
+      res.status(400);
+      return res.json({ data: token });
+    }
+    const user = await User.findById(userId).lean();
+    console.log("got user");
+
+    // if the user does not exist
+    if (!user) {
+      // 400 error, "User not found", return
+      const token = jwt.sign(
+        {
+          error: "User not found",
+        },
+        process.env.JWT_SECRET
+      );
+      res.status(400);
+      return res.json({ data: token });
+    }
+    // SPOOKY GHOST oOoOoOoOoooooOOOO
+
+    const classObj = await Class.findOne({ classId }).lean();
+    console.log("got classObj, type of " + typeof classObj);
+    console.log(classObj);
+
+    // if class does not exist
+    if (!classObj) {
+      // 400 error, "No such class exists", return
+      const token = jwt.sign(
+        {
+          error: "No such class exists",
+        },
+        process.env.JWT_SECRET
+      );
+      res.status(400);
+      return res.json({ data: token });
+    }
+
+    // get prereqs of classId, store in array classPrereqs
+    const classPrereqs = classObj.preReqs;
+
+    // get postreqs of classId, store in array classPostreqs
+    const classPostReqs = classObj.postReqs;
+
+    // get class names of the classes in the semester specified, store in array semClasses
+    let semClasses = user.schedule[semesterNum - 1].semester;
+
+    // Check prereqs to classes in semester
+    if (classPrereqs && (semesterNum > 1)) {
+      for (let i = 0; i < classPrereqs.length; i++) {
+        for (let j = 0; j < semClasses.length; j++) {
+          // if there are any matches in the arrays "classPrereqs" and "semClasses"
+          if (classPrereqs[i] == semClasses[i]) {
+            // 400 error, "prerequisite not met", return
+            const token = jwt.sign(
+              {
+                error: "Prerequisite not met",
+              },
+              process.env.JWT_SECRET
+            );
+            res.status(400);
+            return res.json({ data: token });
+          }
+        }
+      }
+    }
+
+    // Check postreqs of class against semester
+    if (classPostReqs) {
+      for (let i = 0; i < classPostreqs.length; i++) {
+        for (let j = 0; j < semClasses.length; j++) {
+          // if there are any matches in the arrays "classPrereqs" and "semClasses"
+          if (classPostreqs[i] == semClasses[i]) {
+            // 400 error, "postrequisite not met", return
+            const token = jwt.sign(
+              {
+                error: "Postrequisite not met",
+              },
+              process.env.JWT_SECRET
+            );
+            res.status(400);
+            return res.json({ data: token });
+          }
+        }
+      }
+    }
+
+    classSearchAndDestroy(userId, classId, user);
+
+    classAdd(userId, classId, semesterNum - 1, user);
+    console.log("ping pong");
+
+    const token = jwt.sign(
+      {
+        error: "WOO IT DOES THE THING",
+      },
+      process.env.JWT_SECRET
+    );
+    res.status(200);
+    return res.json({ data: token });
+
+    // otherwise, success!
+    // users object -> schedule -> add class to semester -> check which semester had the class -> send it
+  } catch {
+    // catch
+    // 500 error, "database fail?"
+    const token = jwt.sign(
+      {
+        error: "Yikes :(",
+      },
+      process.env.JWT_SECRET
+    );
+    res.status(500);
+    return res.json({ data: token });
+  }
+});
 
 //getElectives + with each prerecs
 app.get("/api/getElectives", async (req, res) => {
@@ -613,9 +640,84 @@ app.post("/api/getSchedule", async (req, res) => {
   return res.json({ data: "This endpoint does not work yet :(" });
 });
 
-// TODO: this but like actual code lol
-// Generate Schedule (oh boy)
 app.post("/api/generateSchedule", async (req, res) => {
+  const { userId } = req.body;
+
+  // Grab user
+  let user = await User.findById(userId).lean();
+
+  if (!user)
+  {
+    const token = jwt.sign(
+      {
+        error: "No user found",
+      },
+      process.env.JWT_SECRET
+    );
+    res.status(400);
+    return res.json({ data: token });
+  }
+
+  console.log("AAAAAAAAAAAAAAAA");
+  newSchedule = [
+    { semester: ["COP2500", "ANT2000", "ENG1101"] },
+    { semester: ["ENG1102", "COP3223"] }
+  ];
+
+  console.log(newSchedule.type);
+
+  // newSchedule = JSON.stringify(newSchedule);
+
+  User.findOneAndReplace(userId, { schedule : "a" });
+
+
+  // User.findOneAndReplace(userId, { schedule: newSchedule }, (err, docs) => {
+  //   if (err) {
+  //     const token = jwt.sign(
+  //       {
+  //         error: "Schedule could not be added",
+  //       },
+  //       process.env.JWT_SECRET
+  //     );
+  //     // 500 since its a server error
+  //     res.status(500); // double check
+  //     return res.json({ data: token });
+  //   } else {
+  //     // it did work woo yay fun time woo party woo
+  //     const token = jwt.sign(
+  //       {
+  //         schedule: newSchedule
+  //       },
+  //       process.env.JWT_SECRET
+  //     );
+  //     // 200 since it succeeded
+  //     res.status(200);
+  //     return res.json({ data: token });
+  //   }
+  // });
+  
+
+
+
+
+
+  await User.findByIdAndUpdate( userId, { schedule: newSchedule });
+  console.log("Updated");
+  const token = jwt.sign(
+    {
+      // Daniel plz give schedule to this user \/\/\/\/\/ -Gaby
+      // 624fa445adb7d5549e6f78d7
+      schedule: newSchedule
+    },
+    process.env.JWT_SECRET
+  );
+  res.status(200);
+  return res.json({ data: token });
+});
+
+// TODO: make the code work with Gaby's restructure and debug
+// Generate Schedule (oh boy)
+app.post("/api/test_generateSchedule", async (req, res) => {
   // Input (required) Variables:
   // note: userId
   // note: scheduleNum (frontend needs to know what schedule number they are making... is this actually required?)
@@ -629,13 +731,46 @@ app.post("/api/generateSchedule", async (req, res) => {
   // note: maxClassCountSpring means the max amount of classes in Spring, default is 4
   // note: maxClassCountSummer means the max amount of classes in Summer, default is 2
 
-  const { userId, scheduleNum, nextSemSeason, 
-    creditLimitFall, creditLimitSpring, creditLimitSummer, 
-    maxClassCountFall, maxClassCountSpring, maxClassCountSummer } = req.body;
+  const {
+    userId = 0,
+    scheduleNum = -1,
+    nextSemSeason = "",
+    creditLimitFall = 17,
+    creditLimitSpring = 17,
+    creditLimitSummer = 14,
+    maxClassCountFall = 4,
+    maxClassCountSpring = 4,
+    maxClassCountSummer = 4,
+    completedClasses: localCompletedClasses = []
+  } = req.body;
 
+  // Grab user
+  let user = await User.findById(userId).lean();
+
+  let completedClasses = localCompletedClasses; 
+
+  // GEP array
+  let gepCheck = new Array (13); 
+  gepCheck.fill(false); 
+
+  let numStateCore = 0; 
+  let numGRW = 0; 
+  let numGRM = 0; 
+  let numCivLit = 0;
+
+  // need 12
+  let gepsCompleted = false;
+  // need
+  let stateCoreCompleted = false;
+  let grwsCompleted = false;
+  let grmsCompleted = false;
+  let civLitCompleted = false;
+
+  // Update the users completed classes
+  await User.findByIdAndUpdate(userId, { completedClasses: completedClasses });
+  
   // Input (required) Variables:
-  if (!userId || userId == "")
-  {
+  if (userId === 0) {
     const token = jwt.sign(
       {
         error: "Invalid request: no userId",
@@ -645,8 +780,7 @@ app.post("/api/generateSchedule", async (req, res) => {
     res.status(400);
     return res.json({ data: token });
   }
-  if (!scheduleNum || scheduleNum == "")
-  {
+  if (scheduleNum === -1) {
     const token = jwt.sign(
       {
         error: "Invalid request: no scheduleNum",
@@ -656,8 +790,7 @@ app.post("/api/generateSchedule", async (req, res) => {
     res.status(400);
     return res.json({ data: token });
   }
-  if (!nextSemSeason || nextSemSeason == "")
-  {
+  if (nextSemSeason == "") {
     const token = jwt.sign(
       {
         error: "Invalid request: no nextSemSeason",
@@ -668,37 +801,7 @@ app.post("/api/generateSchedule", async (req, res) => {
     return res.json({ data: token });
   }
 
-  // Input (parameter) Variables:
-  if (!creditLimitFall || creditLimitFall == "")
-  {
-    console.log("Default creditLimitFall");
-    creditLimitFall = 17;
-  }
-  if (!creditLimitSpring || creditLimitSpring == "")
-  {
-    console.log("Default creditLimitSpring");
-    creditLimitSpring = 17;
-  }
-  if (!creditLimitSummer || creditLimitSummer == "")
-  {
-    console.log("Default creditLimitSummer");
-    creditLimitSummer = 14;
-  }
-  if (!maxClassCountFall || maxClassCountFall == "")
-  {
-    console.log("Default maxClassCountFall");
-    maxClassCountFall = 4;
-  }
-  if (!maxClassCountSpring || maxClassCountSpring == "")
-  {
-    console.log("Default maxClassCountSpring");
-    maxClassCountSpring = 4;
-  }
-  if (!maxClassCountSummer || maxClassCountSummer == "")
-  {
-    console.log("Default maxClassCountSummer");
-    maxClassCountSummer = 4;
-  }
+  
 
   // Generated Variables:
   // note: currSemPoss is a set of classes which can be taken in the next semester
@@ -711,50 +814,123 @@ app.post("/api/generateSchedule", async (req, res) => {
         // if the prereqs are all in completedClasses
           // add the class to currSemPoss
 
+  // CHRISINE TODONE WITH THIS PART: this needs to be changed after the database restructure
+  // checks if every class in target is in arr 
+  // let supersetChecker = (arr, target) => target.every(v => arr.includes(v));
 
-  // TODO: this needs to be changed after the database restructure
-  let supersetChecker = (arr, target) => target.every(v => arr.includes(v));
+  // prerecs is an array of each postrec's prerecs
+  function supersetChecker(complete, preReqs) 
+  {
+    const len = preReqs.length; 
+    let preReqMet;
+    for (let i = 0; i < len; i++) 
+    {
+      preReqMet = false;
+
+      // checks possible coreqs
+      for (let j = 0; j < preReqs.class.length; j++)
+      {
+        if (complete.includes(preReqs[i].class[j]))
+        {
+          preReqMet = true;
+        }
+      }
+      if (!preReqMet)
+      {
+        return false;
+      }
+    }
+    return true; 
+  }
+
 
   let currSemPoss = [];
   let numCompletedClasses = completedClasses.length;
+  let test = [];
+
+  // if they are a freshman (no classes completed)
+    // hardcoded classes lol
+    // this should fulfill the number of classes requirement, number of credits, etc.
+  
+    
+  // pog destructure currentClass.postReqs[j].class
   for (let i = 0; i < numCompletedClasses; i++)
   {
-    currentClass = /*Class.*/searchAndReturnClassByName(completedClasses[i]);
-    numPostReqs = currentClass.postReqs.length;
+    let currentClass = await Class.findOne({ classId : completedClasses[i] }).lean();
+
+    // Class doesnt exist *dies* - What do return???
+    // if(typeof currentClass == 'undefined')
+    // {
+    //   return
+    // }
+
+    // test.push(completedClasses[i]);
+   
+    // Is this skipping the class entirely??? Does it need to be the very first thing?
+    if (!currentClass.postReqs)
+    {
+      continue;
+    }
+
+    let numPostReqs = currentClass.postReqs.length;
+
+    // Go through each of the postreqs
     for (let j = 0; j < numPostReqs; j++)
     {
-      currPostReq = /*Class.*/searchAndReturnClassByName(currentClass.postReqs[j]);
-      if (!currSemPoss.includes(currPostReq.classId))
+      // edge case where theres no postreq? aaa
+      if (!currentClass.postReqs[j].class[0])
       {
-        // TODO: this needs to be changed after the database restructure
-        if (supersetChecker(completedClasses, currPostReq.preReqs))
+        continue; 
+      }
+
+        // doesnt account for coreq possibilities lol
+      let postRec = await Class.findOne({ classId : currentClass.postReqs[j].class[0] }).lean();
+
+      if (!currSemPoss.includes(postRec.classId)) 
+      {
+        // if the user can take the class
+        // if the prereqs of the current post req have been met
+        // if the prereqs of the current post req are all already contained inside of completed classes
+        // if the prereqs of the current post req are a subset of completed classes
+        // if the completed classes are a superset of the prereqs of the current post req
+        
+        if (supersetChecker(completedClasses, postRec.preReqs) && !completedClasses.includes(postRec.classId)) 
         {
-          currSemPoss.push(currPostReq.classId);
+          currSemPoss.push(postRec);
         }
       }
     }
   }
 
-  function classCompare(classA, classB) {
-    // TODO: ensure that these keywords match the database
-    if (classA.compoundedPostReqs.length < classB.compoundedPostReqs.length) {
+  // sorts by postreqs
+  function classCompare(classA, classB)
+  {
+    if (!classA.compPostReqs && !classB.compPostReqs)
+      return 0;
+    
+    // sussy? mkake
+    // if a is greater than b by some arbitrary metric
+    if (!classB.compPostReqs || classA.compPostReqs.length > classB.compPostReqs.length) {
       return -1;
     }
-    if (classA.compoundedPostReqs.length > classB.compoundedPostReqs.length) {
+    // if a is less than b by some arbitrary metric
+    if (!classA.compPostReqs || classA.compPostReqs.length < classB.compPostReqs.length) {
       return 1;
     }
     // a must be equal to b
     return 0;
   }
+
   
   let semesterNum = 0;
   // while currSemPoss.length > 0
-  while (currSemPoss.length > 0)
+  let gradReqFulfilled = false;
+  while (!gradReqFulfilled) 
   {
     let maxClassCount;
     let creditLimit;
     // switch for the current season
-    switch(nextSemSeason)
+    switch (nextSemSeason)
     {
       case "Fall":
         maxClassCount = maxClassCountFall;
@@ -768,36 +944,162 @@ app.post("/api/generateSchedule", async (req, res) => {
         maxClassCount = maxClassCountSummer;
         creditLimit = creditLimitSummer;
         break;
+      default:
+        const token = jwt.sign(
+          {
+            error: "Invalid request: no nextSemSeason",
+          },
+          process.env.JWT_SECRET
+        );
+        res.status(400);
+        return res.json({ data: token });
     }
-
+  
     // THE ~A L G O R I T H M~
     // sort the classes in currSemPoss by compoundedPostRecCount, in decreasing order
     // for each element in currSemPoss:
-      // if currCreditCount + currSemPoss[i].creditCount <= creditLimit:
-        // add the class to currSemClasses and remove it from currSemPoss
-        // if currClassCount >= maxClassCount:
-          // break
+    // if currCreditCount + currSemPoss[i].creditCount <= creditLimit:
+    // add the class to currSemClasses and remove it from currSemPoss
+    // if currClassCount >= maxClassCount:
+    // break
     // add currSemPoss to the user's schedule
-    currSemPoss.sort(classCompare);
-    let currCreditCount = 0;
-    let currSemClasses = [];
+    // TODO: nothing todo here, but I just wanted to say you got this!
+    // :)
+
+  
+  // TODO: this
+  // return res.json(currSemPoss);
+
+  // on the second call theres only 2 classes??? AAaaa
+   
+  
+
+  // daniel look this breaks on the second loop of the while with a "cant read length of undefined err"
+  currSemPoss.sort(classCompare);
+
+
+  let currCreditCount = 0;
+  let currSemClasses = [];
+  // loop through currSemPoss
+    // add as many core classes as possible to currSemClasses(starting from the left moving right), up to a max of 2 core classes
+    // if it is senior design I
+      // put it at the end of currSemPoss and don't add it to currSemClasses
+        // if current class to add is SeniorDesign1, check length of currSemPoss and then do stuff ?
+          // if currSemPoss has other core classes
+            // skip over senior design (somehow, you pick)
+            // you CAN NOT move senior design to the end, otherwise graduation is delayed
+    let coreCount = 0;
+    for (let i = 0; i < currSemPoss.length && coreCount < 2; i++)
+    {
+      if (currSemPoss[i].classType == "core")
+      {
+        currSemClasses.push(currSemPoss[i]);
+        coreCount++;
+      }
+    }
+
     for (let i = 0; i < currSemPoss.length; i++)
     {
-      if (currCreditCount + currSemPoss[i].creditHours <= creditLimit)
+      if (currCreditCount + currSemPoss[i].creditHours <= creditLimit) 
       {
-        if (currSemClasses.length < maxClassCount)
+        if (currSemClasses.length + 1 <= maxClassCount)
         {
-          currSemClasses.push(currSemPoss[i].classId);
-        }
-        else 
-        {
+          // ----- with the remaining slots in the semester, it prioritizes GEPs that have state core requirements -----
+          // ----- then it priorities GRWs and GRMs -----
+
+          // Priorities for classes:
+            // Core classes
+            // GEPs
+              // State Core
+              // GRW/GRM
+              // non-statecore or non-GRW/GRM
+
+          // TSA - not VIP line
+          // if (the class) to be added is a GEP and NOT a core class
+          test.push(currSemPoss[i]);
+          // if (currSemPoss[i].classType === "gep" && currSemPoss[i].classType !== "core") {
+            
+
+          // }
+            // if the GEP is NOT already completed
+              // ----- check for GRW and GRM -----
+              // if the class would not fulfill a GRW  or GRM
+                // if the GRW or GRM has not been fulfilled yet
+                  // if currSemPoss contains a class in that GEP number that would fulfull the GRW or GRM
+                    // swap the class to be added to the class that would fulfill that GRW or GRM requirement
+              // ----- check for state core -----
+              // if the GEP does not fulfill a state core requirement
+                // if there is another class in currSemPoss that is the same GEP but it also fulfills a state core requirement
+                  // if the state core requirement that it would fulfill is not yet completed
+                    // swap the current class to the class that fulfills the state core requirement
+            // else (GEP is already completed)
+              // if there are still courses in currSemPoss
+                // continue
+
+          currSemClasses.push(currSemPoss[i]);
+
+          // If the class is a GEP, mark that GEP
+          if (currentClass.type == "gep")
+          {
+            for (let i = 0; i < currentClass.gep.length; i++)
+            {
+              // If the gep is open, fill it
+              if (!gepCheck[currentClass.gep[i]])
+              {
+                gepCheck[currentClass.gep[i]] == true;
+                break;
+              }
+            }
+            // Check for if none of the geps are open??? (cant take that gep)
+
+            // If the class fulfills a GRW or GRM, mark it
+            for (let i = 0; i < currentClass.gepReqs.length; i++)
+            {
+              if (currentClass.gepReqs[i] == "State Core")
+              {
+                numStateCore++;
+              }
+              else if (currentClass.gepReqs[i] == "GRW")
+              {
+                numGRW++;
+              }
+              else if (currentClass.gepReqs[i] == "GRM")
+              {
+                numGRM++;
+              }
+              else if (currentClass.gepReqs[i] == "CL")
+              {
+                numCivLit++;
+              }
+              else
+              {
+                console.log("Ya got a typo dummy -Gaby to Gaby");
+              }
+            }
+          }
+
+          currSemPoss.splice(i, 1);
+          
+          
+          // remove the class from currSemPoss(so we don't add the class over and over)
+
+          // -----marks the properties of the schedule completed as necessary from the class's properties-----
+          // if that GEP is now completed
+            // mark that GEP as completed(locally, in whatever storage you are using to mark GEPs as done)
+          // if the class has a GRW or GRM requirement 
+            // increment the GRW or GRM counter as necessary
+            // mark GRW and GRM completed as necessary
+          // if the class has a state core requirement
+            // mark it completed as necessary
+        } else {
           break;
         }
       }
     }
+
+   // return res.json(test);
     // user.add(scheduleNum, semesterNum, currSemClasses)
 
-    
     // SETUP FOR THE FOLLOWING SEMESTER
     // add the classes in currSemClasses to completedClasses
     // for each class in currSemClasses:
@@ -808,27 +1110,41 @@ app.post("/api/generateSchedule", async (req, res) => {
     // move the season up one
     // clear currSemClasses
 
+    
+    function currSemClassNerfer(classArr) {
+      let idsOnly = []; 
 
-    completedClasses = completedClasses.concat(currSemClasses);
+      for (let i = 0; i < classArr.length; i++) {
+        idsOnly.push(classArr[i].classId); 
+      }
+      return idsOnly; 
+    }
+    
+    
+    let nerfedSemClasses = currSemClassNerfer(currSemClasses); 
+    
+    completedClasses = completedClasses.concat(nerfedSemClasses); 
+
+
     // removes the contents of currSemClasses from currSemPoss
-    currSemPoss = currSemPoss.filter( ( el ) => !currSemClasses.includes( el ) );
-    for (let i = 0; i < currSemClasses.length; i++)
-    {
-      currClass = /*Class.*/searchAndReturnClassByName(currSemClasses);
-      for (let j = 0; j < currClass.postReqs.length; j++)
-      {
+    currSemPoss = currSemPoss.filter((el) => !currSemClasses.includes(el));
+    for (let i = 0; i < currSemClasses.length; i++) {
+      currClass = await Class.findOne({ classId : completedClasses[i] }).lean();
+      for (let j = 0; j < currClass.postReqs.length; j++) {
         // TODO: if the postreq has all of its prereqs in completed classes
-        if (true)
-        {
-          // TODO: add the postreq to currSemPoss
+        // this is the same thing as the subsetChecker call from above
+        if (supersetChecker(completedClasses, currClass.preReqs) && !completedClasses.includes(currClass.classId)) {
+          currSemPoss.push(currClass.postReqs[j].classId);
         }
       }
     }
 
+    if (semesterNum === 0)
+     return res.json(currSemPoss); 
+
     semesterNum++;
     currSemClasses = [];
   }
-
   res.status(500);
   return res.json({ data: "This endpoint does not work yet :(" });
 });
@@ -847,7 +1163,6 @@ app.get("/api/passwords", (req, res) => {
   console.log(`Sent ${count} passwords`);
 });
 
-
 // ------------------------------------------------------------------------------------------------------------------------------------
 
 // The "catchall" handler: for any request that doesn't
@@ -858,5 +1173,6 @@ app.get("*", (req, res) => {
 
 const port = process.env.PORT || 5000;
 app.listen(port);
+// app.set('port', process.env.PORT || 5000);
 
 console.log(`I'm listening on ${port}`);
